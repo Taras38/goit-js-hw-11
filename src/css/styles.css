@@ -85,6 +85,9 @@ button {
     margin-left: auto;
     margin-right: auto;
   }
+  .hidden {
+    display: none;
+  }
   .gallery__link {
     display: block;
     text-decoration: none;
