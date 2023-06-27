@@ -1,20 +1,46 @@
+import axios from 'axios';
 import Notiflix from 'notiflix';
 import SimpleLightbox from "simplelightbox";
 import "simplelightbox/dist/simple-lightbox.min.css";
-import { getRequest} from './js/api';
 
-const galleryWrapper=document.querySelector('.gallery');
+const pixabayKey = '37761456-12bba2161ec0a2b01ebab9c6f';
+
 const formEl = document.querySelector('form');
-const inputEl =document.querySelector('input');
-let totalValues;
-let inputValue='';
-let page = 1; 
+const inputEl = document.querySelector('input'); 
+const galleryEl = document.querySelector('.gallery');
+let page = 1;
 let searchQuery = '';
 let perPage;
-let lightbox;
+let totalValues;
+let inputValue = '';
+
+let lightbox; 
+
+function getUrl(inputValue, page) {
+    perPage = 40;
+    const urlAPI = 'https://pixabay.com/api/?';
+    const searchParams = new URLSearchParams({
+        key: pixabayKey,
+        q: inputValue,
+        image_type: 'photo',
+        orientation: 'horizontal',
+        maxHeight: 300,
+        safesearch: true,
+        per_page: perPage,
+        page: page,
+    });
+
+    return urlAPI + searchParams.toString();
+}
+
+function getAxiosRequest(inputValue, page) {
+    const url = getUrl(inputValue, page);
+   
+    return axios.get(url).then(response => response).catch(error => Notiflix.Notify.failure(error))
+}
 
 function makeMarkup(responseData) {
-  let gallery = responseData.data.hits.map(item => {
+  let galleryItems = responseData.data.hits.map(item => {
     let galleryItem = document.createElement('div');
     galleryItem.className = 'photo-card';
     galleryItem.innerHTML = `
@@ -42,46 +68,50 @@ function makeMarkup(responseData) {
     `;
     return galleryItem;
   });
+
+  galleryItems.forEach(item => {
+    galleryEl.appendChild(item);
+  });
   
-gallery.forEach(item=>{
-  galleryWrapper.appendChild(item)
-});
- lightbox.refresh();
+  lightbox.refresh();
 
- const { height: cardHeight } = document
-  .querySelector(".gallery")
-  .firstElementChild.getBoundingClientRect();
-window.scrollBy({
-  top: cardHeight * 2,
-  behavior: "smooth",
-});
-window.scrollTo(0, 0)
- }
+  const { height: cardHeight } = document
+    .querySelector(".gallery")
+    .firstElementChild.getBoundingClientRect();
 
- async function onFormSubmit(evt) {
-  evt.preventDefault();
-  inputValue = inputEl.value;
- searchQuery=inputValue;
- page = 1;
+  window.scrollBy({
+    top: cardHeight * 2,
+    behavior: "smooth",
+  });
 
-  let responseData;
-  if(inputValue==='0'){
-    Notiflix.Report.warning("Please, enter your request!")
-  }else{
-      try {
-          responseData = await getRequest(inputValue, page);
-          if (responseData.data.total === 0) {
-              throw new Error('Sorry, there are no images matching your search query. Please try again.');
-          } else {
-           galleryWrapper.innerHTML = '';
-            makeMarkup(responseData);
-            inputEl.value = '';
-            Notiflix.Report.success(`Hooray! We found ${responseData.data.totalHits} images.`)
-          }
-      } catch (error) {inputEl.value = '';
-        Notiflix.Report.failure(error.message,"ERROR request!Please,try again!");
-        
-  }}
+  window.scrollTo(0, 0);
+}
+
+async function onFormSubmit(event) {
+    event.preventDefault();
+
+    inputValue = inputEl.value;
+    searchQuery = inputValue;
+    page = 1;
+    let responseData;
+    
+    if (inputValue.length === 0) {
+        Notiflix.Notify.warning('Please, enter your request!')
+    } else {
+        try {
+            responseData = await getAxiosRequest(inputValue, page);
+            if (responseData.data.total === 0) {
+                throw new Error('Sorry, there are no images matching your search query. Please try again.');
+            } else {
+              galleryEl.innerHTML = '';
+              makeMarkup(responseData);
+              inputEl.value = '';
+              Notiflix.Notify.success(`Hooray! We found ${responseData.data.totalHits} images.`)
+            }
+        } catch (error) {
+            Notiflix.Notify.failure(error.message);
+        }
+    }
 };
 
 formEl.addEventListener('submit', onFormSubmit);
@@ -99,11 +129,11 @@ async function loadMoreImages() {
   page++;
   previousScrollTop = window.pageYOffset;
   try {
-    let responseData = await getRequest(searchQuery, page);
+    let responseData = await getAxiosRequest(searchQuery, page);
     makeMarkup(responseData);
     totalValues = responseData.data.totalHits;
   } catch (error) {
-    Notiflix.Report.failure(error.message,"ERROR!");
+    Notiflix.Notify.failure(error.message);
   } finally {
     isLoading = false;
     window.scrollTo(0, previousScrollTop);
@@ -122,7 +152,7 @@ function onWindowScroll() {
 }
 
 window.addEventListener('scroll', onWindowScroll);
+
 document.addEventListener('DOMContentLoaded', function() {
   lightbox = new SimpleLightbox('.photo-card a');
 });
-
